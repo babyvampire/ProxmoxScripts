@@ -467,15 +467,17 @@ configure_single_remote() {
             read -rp "Enter node name: " manual_name
             read -rp "Enter username (default: root): " manual_user
             manual_user="${manual_user:-root}"
+            read -rp "Enter SSH port (default: 22): " manual_port
+            manual_port="${manual_port:-22}"
 
             # Check for SSH key auth automatically (test since not in nodes.json)
-            local has_keys=$(__has_ssh_keys__ "$manual_ip" "$manual_user" "")
+            local has_keys=$(__has_ssh_keys__ "$manual_ip" "$manual_user" "" "$manual_port")
             if [[ "$has_keys" == "true" ]]; then
                 echo
                 __line_rgb__ "SSH key authentication detected" 0 255 0
                 export USE_SSH_KEYS=true
                 __clear_remote_targets__
-                __add_remote_target__ "$manual_name" "$manual_ip" "" "$manual_user"
+                __add_remote_target__ "$manual_name" "$manual_ip" "" "$manual_user" "$manual_port"
                 __set_execution_mode__ "single-remote"
                 __success__ "Using SSH key authentication (no password needed)"
                 sleep 1
@@ -489,9 +491,9 @@ configure_single_remote() {
             
             # Test connection before proceeding
             echo "Testing connection..."
-            if ! __test_remote_connection__ "$manual_ip" "$manual_pass" "$manual_user" "22"; then
+            if ! __test_remote_connection__ "$manual_ip" "$manual_pass" "$manual_user" "$manual_port"; then
                 echo
-                __line_rgb__ "✗ Connection failed! Please check IP, username, and password." 255 0 0
+                __line_rgb__ "✗ Connection failed! Please check IP, username, port, and password." 255 0 0
                 echo "Press Enter to try again..."
                 read -r
                 continue
@@ -500,7 +502,7 @@ configure_single_remote() {
             sleep 1
 
             __clear_remote_targets__
-            __add_remote_target__ "$manual_name" "$manual_ip" "$manual_pass" "$manual_user"
+            __add_remote_target__ "$manual_name" "$manual_ip" "$manual_pass" "$manual_user" "$manual_port"
             __set_execution_mode__ "single-remote"
             return 0
         fi
@@ -513,17 +515,22 @@ configure_single_remote() {
             node_ip=$(__get_node_ip__ "$node_name")
             local node_username
             node_username=$(__get_node_username__ "$node_name")
+            local node_port
+            node_port=$(__get_node_port__ "$node_name")
 
             # Check if SSH keys work for this node (use cache)
             local key_indicator=""
-            local has_keys=$(__has_ssh_keys__ "$node_ip" "$node_username" "$node_name")
+            local has_keys=$(__has_ssh_keys__ "$node_ip" "$node_username" "$node_name" "$node_port")
             if [[ "$has_keys" == "true" ]]; then
                 key_indicator=" [SSH Key]"
             else
                 key_indicator=" [No Key]"
             fi
 
-            __line_rgb__ "  $i) $node_name ($node_username@$node_ip) $key_indicator" 0 200 200
+            local port_indicator=""
+            [[ "$node_port" != "22" ]] && port_indicator=":${node_port}"
+
+            __line_rgb__ "  $i) $node_name ($node_username@$node_ip${port_indicator}) $key_indicator" 0 200 200
             node_menu[$i]="$node_name:$node_ip"
             ((i += 1))
         done < <(__get_available_nodes__)
@@ -564,15 +571,17 @@ configure_single_remote() {
             read -rp "Enter node name: " manual_name
             read -rp "Enter username (default: root): " manual_user
             manual_user="${manual_user:-root}"
+            read -rp "Enter SSH port (default: 22): " manual_port
+            manual_port="${manual_port:-22}"
 
             # Check for SSH key auth automatically (use cache)
-            local has_keys=$(__has_ssh_keys__ "$manual_ip" "$manual_user" "")
+            local has_keys=$(__has_ssh_keys__ "$manual_ip" "$manual_user" "" "$manual_port")
             if [[ "$has_keys" == "true" ]]; then
                 echo
                 __line_rgb__ "SSH key authentication detected" 0 255 0
                 export USE_SSH_KEYS=true
                 __clear_remote_targets__
-                __add_remote_target__ "$manual_name" "$manual_ip" "" "$manual_user"
+                __add_remote_target__ "$manual_name" "$manual_ip" "" "$manual_user" "$manual_port"
                 __set_execution_mode__ "single-remote"
                 __success__ "Using SSH key authentication (no password needed)"
                 sleep 1
@@ -586,7 +595,7 @@ configure_single_remote() {
             
             # Test connection before proceeding
             echo "Testing connection..."
-            if ! __test_remote_connection__ "$manual_ip" "$manual_pass" "$manual_user" "22"; then
+            if ! __test_remote_connection__ "$manual_ip" "$manual_pass" "$manual_user" "$manual_port"; then
                 echo
                 __line_rgb__ "✗ Connection failed! Please check IP, username, and password." 255 0 0
                 echo "Press Enter to try again..."
@@ -597,22 +606,24 @@ configure_single_remote() {
             sleep 1
 
             __clear_remote_targets__
-            __add_remote_target__ "$manual_name" "$manual_ip" "$manual_pass" "$manual_user"
+            __add_remote_target__ "$manual_name" "$manual_ip" "$manual_pass" "$manual_user" "$manual_port"
             __set_execution_mode__ "single-remote"
             return 0
         elif [[ -n "$node_choice" && -n "${node_menu[$node_choice]:-}" ]]; then
             IFS=':' read -r selected_name selected_ip <<<"${node_menu[$node_choice]}"
             local selected_username
             selected_username=$(__get_node_username__ "$selected_name")
+            local selected_port
+            selected_port=$(__get_node_port__ "$selected_name")
 
             # Check for SSH key auth automatically (use cache)
-            local has_keys=$(__has_ssh_keys__ "$selected_ip" "$selected_username" "$selected_name")
+            local has_keys=$(__has_ssh_keys__ "$selected_ip" "$selected_username" "$selected_name" "$selected_port")
             if [[ "$has_keys" == "true" ]]; then
                 echo
                 __line_rgb__ "SSH key authentication detected" 0 255 0
                 export USE_SSH_KEYS=true
                 __clear_remote_targets__
-                __add_remote_target__ "$selected_name" "$selected_ip" "" "$selected_username"
+                __add_remote_target__ "$selected_name" "$selected_ip" "" "$selected_username" "$selected_port"
                 __set_execution_mode__ "single-remote"
                 __success__ "Using SSH key authentication (no password needed)"
                 sleep 1
@@ -623,10 +634,6 @@ configure_single_remote() {
             echo "SSH keys not detected, password required."
             read -rsp "Enter password for $selected_name: " node_pass
             echo
-            
-            # Get port for this node
-            local selected_port
-            selected_port=$(__get_node_port__ "$selected_name")
             
             # Test connection before proceeding
             echo "Testing connection to $selected_name..."
@@ -641,7 +648,7 @@ configure_single_remote() {
             sleep 1
 
             __clear_remote_targets__
-            __add_remote_target__ "$selected_name" "$selected_ip" "$node_pass" "$selected_username"
+            __add_remote_target__ "$selected_name" "$selected_ip" "$node_pass" "$selected_username" "$selected_port"
             __set_execution_mode__ "single-remote"
             return 0
         else
@@ -970,6 +977,8 @@ configure_multi_ip_range() {
     echo
     read -rp "Enter username for all nodes in range (default: root): " shared_user
     shared_user="${shared_user:-root}"
+    read -rp "Enter SSH port for all nodes in range (default: 22): " shared_port
+    shared_port="${shared_port:-22}"
     read -rsp "Enter password for all nodes in range: " shared_pass
     echo
 
@@ -981,6 +990,7 @@ configure_multi_ip_range() {
         REMOTE_TARGETS+=("$node_name:$ip")
         NODE_PASSWORDS["$node_name"]="$shared_pass"
         NODE_USERNAMES["$node_name"]="$shared_user"
+        NODE_PORTS["$node_name"]="$shared_port"
     done
 
     echo
@@ -1027,6 +1037,8 @@ configure_multi_vmid_range() {
     echo
     read -rp "Enter username for all target nodes (default: root): " shared_user
     shared_user="${shared_user:-root}"
+    read -rp "Enter SSH port for all target nodes (default: 22): " shared_port
+    shared_port="${shared_port:-22}"
     read -rsp "Enter password for all target nodes: " shared_pass
     echo
 
@@ -1049,6 +1061,7 @@ configure_multi_vmid_range() {
             REMOTE_TARGETS+=("$node_name:$ip")
             NODE_PASSWORDS["$node_name"]="$shared_pass"
             NODE_USERNAMES["$node_name"]="$shared_user"
+            NODE_PORTS["$node_name"]="$shared_port"
             echo "  Found VMID $vmid: $ip"
             ((found_count += 1))
         fi

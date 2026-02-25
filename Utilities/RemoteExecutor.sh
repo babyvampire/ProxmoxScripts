@@ -44,6 +44,13 @@ fi
 # Global flag for interrupt
 REMOTE_INTERRUPTED=0
 
+# Track current remote execution for cleanup
+REMOTE_CURRENT_NODE_IP=""
+REMOTE_CURRENT_NODE_PASS=""
+REMOTE_CURRENT_NODE_USER=""
+REMOTE_CURRENT_NODE_PORT=""
+REMOTE_CURRENT_PID_FILE=""
+
 # Authentication mode: "password" or "key"
 # Can be set globally or per-node
 USE_SSH_KEYS="${USE_SSH_KEYS:-false}"
@@ -60,18 +67,51 @@ __remote_cleanup__() {
     # Stop any running spinner
     __stop_spin__ 2>/dev/null || true
 
-    # Kill any background SSH processes (more aggressive)
-    killall -9 sshpass 2>/dev/null || true
-    killall -9 ssh 2>/dev/null || true
-    pkill -9 -P $$ sshpass 2>/dev/null || true
-    pkill -9 -P $$ ssh 2>/dev/null || true
-    pkill -9 -P $$ scp 2>/dev/null || true
+    # Kill the remote script process if we have connection info
+    if [[ -n "$REMOTE_CURRENT_NODE_IP" && -n "$REMOTE_CURRENT_PID_FILE" ]]; then
+        __warn__ "Sending kill to remote process..."
+        # Read remote PID and kill it along with its children
+        {
+            if [[ "$USE_SSH_KEYS" == "true" ]] || [[ -z "$REMOTE_CURRENT_NODE_PASS" ]]; then
+                ssh -o StrictHostKeyChecking=no -o ConnectTimeout=3 \
+                    -p "$REMOTE_CURRENT_NODE_PORT" \
+                    "${REMOTE_CURRENT_NODE_USER}@${REMOTE_CURRENT_NODE_IP}" \
+                    "if [ -f '${REMOTE_CURRENT_PID_FILE}' ]; then pid=\$(cat '${REMOTE_CURRENT_PID_FILE}'); kill -TERM -\$pid 2>/dev/null || kill -TERM \$pid 2>/dev/null; sleep 0.5; kill -9 -\$pid 2>/dev/null || kill -9 \$pid 2>/dev/null; rm -f '${REMOTE_CURRENT_PID_FILE}'; fi"
+            else
+                sshpass -p "$REMOTE_CURRENT_NODE_PASS" \
+                    ssh -o StrictHostKeyChecking=no -o ConnectTimeout=3 \
+                    -p "$REMOTE_CURRENT_NODE_PORT" \
+                    "${REMOTE_CURRENT_NODE_USER}@${REMOTE_CURRENT_NODE_IP}" \
+                    "if [ -f '${REMOTE_CURRENT_PID_FILE}' ]; then pid=\$(cat '${REMOTE_CURRENT_PID_FILE}'); kill -TERM -\$pid 2>/dev/null || kill -TERM \$pid 2>/dev/null; sleep 0.5; kill -9 -\$pid 2>/dev/null || kill -9 \$pid 2>/dev/null; rm -f '${REMOTE_CURRENT_PID_FILE}'; fi"
+            fi
+        } 2>/dev/null || true
+    fi
+
+    # Kill local SSH/SCP child processes of this script
+    local child_pids
+    child_pids=$(jobs -p 2>/dev/null) || true
+    if [[ -n "$child_pids" ]]; then
+        kill -9 $child_pids 2>/dev/null || true
+    fi
+    # Also kill direct child ssh/sshpass processes
+    local pid
+    for pid in $(pgrep -P $$ 2>/dev/null || true); do
+        local cmd
+        cmd=$(ps -o comm= -p "$pid" 2>/dev/null || true)
+        if [[ "$cmd" == "ssh" || "$cmd" == "sshpass" || "$cmd" == "scp" ]]; then
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+    done
 
     # Give processes a moment to die
     sleep 0.2
 
     # Cleanup temp files
     rm -f /tmp/remote_exec_*.tar.gz 2>/dev/null || true
+
+    # Reset remote tracking
+    REMOTE_CURRENT_NODE_IP=""
+    REMOTE_CURRENT_PID_FILE=""
 
     echo
     echo "Cleanup complete"
@@ -319,8 +359,7 @@ __execute_on_remote_node__() {
         return 1
     fi
 
-    # Execute script remotely
-    __info__ "Executing script..."
+    # Execute script remotely with live output streaming
     __log_info__ "Executing $script_relative on remote with args: $param_line" "REMOTE"
     __log_debug__ "REMOTE_LOG_LEVEL in RemoteExecutor: $REMOTE_LOG_LEVEL" "REMOTE"
 
@@ -328,45 +367,53 @@ __execute_on_remote_node__() {
     local exec_id="$$_$(date +%s%N)"
     local remote_log="/tmp/proxmox_remote_execution_${exec_id}.log"
     local remote_debug_log="/tmp/proxmox_remote_debug_${exec_id}.log"
+    local remote_pid_file="/tmp/proxmox_remote_pid_${exec_id}"
+    local local_remote_log="/tmp/remote_${node_name}_${exec_id}.log"
+    local local_debug_log="/tmp/remote_${node_name}_${exec_id}.debug.log"
     local ssh_exit_code=0
 
-    # Execute script and capture output to log file
+    # Track current remote node for Ctrl+C cleanup
+    REMOTE_CURRENT_NODE_IP="$node_ip"
+    REMOTE_CURRENT_NODE_PASS="$node_pass"
+    REMOTE_CURRENT_NODE_USER="$username"
+    REMOTE_CURRENT_NODE_PORT="$port"
+    REMOTE_CURRENT_PID_FILE="$remote_pid_file"
+
+    # Stop spinner — stream live output directly to terminal
+    __ok__ "Executing script on $node_name (live output)..."
+    echo
+    echo "--- Remote Output ($node_name) ---"
+
+    # Execute script: stdout/stderr stream live via SSH (tee saves a local copy)
+    # The remote command writes its PID to a file so we can kill it on interrupt
     if [[ -n "$param_line" ]]; then
         __ssh_exec__ "$node_ip" "$node_pass" "$username" "$port" \
-            "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin NON_INTERACTIVE=1 DEBIAN_FRONTEND=noninteractive UTILITYPATH='$REMOTE_TEMP_DIR/Utilities' LOG_FILE='$remote_debug_log' LOG_LEVEL=$REMOTE_LOG_LEVEL LOG_CONSOLE=0 && cd $REMOTE_TEMP_DIR && { echo '=== Remote Execution Start ==='; echo 'Script: bash $script_relative'; echo 'Arguments: $param_line'; echo 'Working directory: '\$(pwd); echo 'UTILITYPATH: '\$UTILITYPATH; echo 'LOG_FILE: '\$LOG_FILE; echo 'LOG_LEVEL: '\$LOG_LEVEL; echo 'LOG_LEVEL (actual): $REMOTE_LOG_LEVEL'; echo '==================================='; eval bash $script_relative $param_line; echo \$? > ${remote_log}.exit; } >> $remote_log 2>&1"
-        ssh_exit_code=$?
+            "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin NON_INTERACTIVE=1 DEBIAN_FRONTEND=noninteractive UTILITYPATH='$REMOTE_TEMP_DIR/Utilities' LOG_FILE='$remote_debug_log' LOG_LEVEL=$REMOTE_LOG_LEVEL LOG_CONSOLE=0 && cd $REMOTE_TEMP_DIR && { eval bash $script_relative $param_line & SCRIPT_PID=\$!; echo \$SCRIPT_PID > $remote_pid_file; wait \$SCRIPT_PID; EXIT_CODE=\$?; rm -f $remote_pid_file; exit \$EXIT_CODE; }" 2>&1 | tee "$local_remote_log"
+        ssh_exit_code=${PIPESTATUS[0]}
     else
         __ssh_exec__ "$node_ip" "$node_pass" "$username" "$port" \
-            "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin NON_INTERACTIVE=1 DEBIAN_FRONTEND=noninteractive UTILITYPATH='$REMOTE_TEMP_DIR/Utilities' LOG_FILE='$remote_debug_log' LOG_LEVEL=$REMOTE_LOG_LEVEL LOG_CONSOLE=0 && cd $REMOTE_TEMP_DIR && { echo '=== Remote Execution Start ==='; echo 'Script: bash $script_relative'; echo 'Working directory: '\$(pwd); echo 'UTILITYPATH: '\$UTILITYPATH; echo 'LOG_FILE: '\$LOG_FILE; echo 'LOG_LEVEL: '\$LOG_LEVEL; echo 'LOG_LEVEL (actual): $REMOTE_LOG_LEVEL'; echo '==================================='; bash $script_relative; echo \$? > ${remote_log}.exit; } >> $remote_log 2>&1"
-        ssh_exit_code=$?
+            "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin NON_INTERACTIVE=1 DEBIAN_FRONTEND=noninteractive UTILITYPATH='$REMOTE_TEMP_DIR/Utilities' LOG_FILE='$remote_debug_log' LOG_LEVEL=$REMOTE_LOG_LEVEL LOG_CONSOLE=0 && cd $REMOTE_TEMP_DIR && { bash $script_relative & SCRIPT_PID=\$!; echo \$SCRIPT_PID > $remote_pid_file; wait \$SCRIPT_PID; EXIT_CODE=\$?; rm -f $remote_pid_file; exit \$EXIT_CODE; }" 2>&1 | tee "$local_remote_log"
+        ssh_exit_code=${PIPESTATUS[0]}
     fi
 
-    # Get final exit code from file if available
-    local temp_exit_file="/tmp/remote_exit_${exec_id}"
-    if __scp_download__ "$node_ip" "$node_pass" "$username" "$port" "${remote_log}.exit" "$temp_exit_file" 2>/dev/null; then
-        local script_exit_code=$(cat "$temp_exit_file" 2>/dev/null)
-        if [[ -n "$script_exit_code" ]] && [[ "$script_exit_code" =~ ^[0-9]+$ ]]; then
-            ssh_exit_code=$script_exit_code
-        fi
-        rm -f "$temp_exit_file"
-    fi
+    echo "--- End Remote Output ---"
 
-    __ok__ "Script execution complete"
+    # Clear remote tracking
+    REMOTE_CURRENT_NODE_IP=""
+    REMOTE_CURRENT_PID_FILE=""
 
     __log_info__ "Script execution completed with exit code: $ssh_exit_code" "REMOTE"
 
-    # Download final log file and debug logs
-    local local_remote_log="/tmp/remote_${node_name}_${exec_id}.log"
-    local local_debug_log="/tmp/remote_${node_name}_${exec_id}.debug.log"
+    # Append output log to main log file
+    if [[ -f "$local_remote_log" ]]; then
+        cat "$local_remote_log" >>"$LOG_FILE" 2>/dev/null || true
+    fi
+    echo "Output log saved to: $local_remote_log"
 
-    # Ensure we have the final version of the log
-    __scp_download__ "$node_ip" "$node_pass" "$username" "$port" "$remote_log" "$local_remote_log" 2>/dev/null || true
-    
     # Retrieve debug log if it exists
     if __scp_download__ "$node_ip" "$node_pass" "$username" "$port" "$remote_debug_log" "$local_debug_log" 2>/dev/null; then
         __log_info__ "Retrieved debug log from $node_name" "REMOTE"
 
-        # Show debug log if it has content (not shown live)
         if [[ -s "$local_debug_log" ]]; then
             echo
             echo "--- Debug Log from $node_name (LOG_LEVEL=$REMOTE_LOG_LEVEL) ---"
@@ -375,24 +422,17 @@ __execute_on_remote_node__() {
             echo
         fi
 
-        # Append debug log to main log file
         cat "$local_debug_log" >>"$LOG_FILE" 2>/dev/null || true
         echo "Debug log saved to: $local_debug_log"
     else
         __log_debug__ "No debug log available from $node_name" "REMOTE"
     fi
 
-    echo "Output log saved to: $local_remote_log"
-    if [[ -f "$local_remote_log" ]]; then
-        cat "$local_remote_log" >>"$LOG_FILE"
-    fi
-
     # Cleanup
-    CURRENT_MESSAGE="Cleaning up..."
-    __update__ "$CURRENT_MESSAGE"
+    __info__ "Cleaning up..."
     __log_info__ "Cleaning up remote directory: $REMOTE_TEMP_DIR" "REMOTE"
     __ssh_exec__ "$node_ip" "$node_pass" "$username" "$port" \
-        "rm -rf $REMOTE_TEMP_DIR $remote_log $remote_debug_log ${remote_log}.exit" 2>/dev/null || __log_warn__ "Cleanup failed (non-critical)" "REMOTE"
+        "rm -rf $REMOTE_TEMP_DIR $remote_log $remote_debug_log ${remote_log}.exit $remote_pid_file" 2>/dev/null || __log_warn__ "Cleanup failed (non-critical)" "REMOTE"
     __ok__ "Cleanup complete"
 
     echo

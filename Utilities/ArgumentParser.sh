@@ -208,10 +208,11 @@ __parse_args__() {
             fi
 
             FLAG_NAMES["--${name}"]="${name^^}"
+            FLAG_NAMES["--${name}"]="${FLAG_NAMES["--${name}"]//-/_}"
             FLAG_TYPES["--${name}"]="$type"
 
             # Check for reserved variable name conflicts
-            local var_name="${name^^}"
+            local var_name="${FLAG_NAMES["--${name}"]}"
             for reserved in "${CRITICAL_RESERVED[@]}"; do
                 if [[ "$var_name" == "$reserved" ]]; then
                     __argparser_log__ "ERROR" "CRITICAL: Argument name '$name' conflicts with reserved variable '$reserved'"
@@ -222,13 +223,13 @@ __parse_args__() {
                 fi
             done
 
-            __argparser_log__ "DEBUG" "Registered flag: --${name} -> ${name^^} (type: $type, optional: $optional)"
+            __argparser_log__ "DEBUG" "Registered flag: --${name} -> ${var_name} (type: $type, optional: $optional)"
 
             # Initialize variable
             if [[ "$type" == "flag" || "$type" == "bool" ]]; then
-                eval "${name^^}=false"
+                eval "${var_name}=false"
             else
-                eval "${name^^}='${default}'"
+                eval "${var_name}='${default}'"
             fi
         else
             # Positional argument

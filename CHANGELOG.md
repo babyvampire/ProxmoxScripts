@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.9] - 2026-02-24
+
+Remote execution cancellation, live output streaming, and custom port support improvements
+
+### Fixed
+- **Script Cancellation** - Ctrl+C now kills the remote script process via SSH
+  - Tracks remote PID and sends targeted SIGTERM/SIGKILL on interrupt
+  - Replaced unsafe `killall`/`pkill` with process-specific cleanup
+- **ArgumentParser Hyphenated Flags** - Flag names with hyphens now map correctly to variable names
+  - Converts hyphens to underscores in variable names (e.g. `--my-flag` -> `MY_FLAG`)
+- **Custom Port Passthrough** - Fixed port not being passed through in manual node entry and IP/VMID range flows
+
+### Changed
+- **Live Remote Output** - Remote script output now streams directly to terminal
+  - Replaced deferred log download with real-time `tee`-based streaming
+  - Output log still saved locally for review
+- **Git File Modes** - All `.sh` files tracked as executable (100755)
+
+### Technical Details
+- Added `REMOTE_CURRENT_*` tracking globals and `remote_pid_file` for targeted cleanup in `__remote_cleanup__`
+- `__add_remote_target__` and `__clear_remote_targets__` now handle port parameter
+- Manual node entry prompts for SSH port in GUI single-remote, multi-IP, and multi-VMID flows
+- Node selection prompts for SSH port in `__select_nodes__`
+
 ## [2.1.8] - 2026-01-08
 
 Critical bug fixes for bulk operations and performance optimizations

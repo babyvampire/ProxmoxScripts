@@ -122,8 +122,11 @@ __select_nodes__() {
         echo
         read -rp "Enter node IP manually: " manual_ip
         read -rp "Enter node name: " manual_name
+        read -rp "Enter SSH port (default: 22): " manual_port
+        manual_port="${manual_port:-22}"
 
         SELECTED_NODES["$manual_name"]="$manual_ip"
+        NODE_PORTS["$manual_name"]="$manual_port"
         __get_node_passwords__ "single" "$manual_name"
         return 0
     fi
@@ -146,7 +149,10 @@ __select_nodes__() {
         elif [[ "$node_choice" == "m" ]]; then
             read -rp "Enter node IP: " manual_ip
             read -rp "Enter node name: " manual_name
+            read -rp "Enter SSH port (default: 22): " manual_port
+            manual_port="${manual_port:-22}"
             SELECTED_NODES["$manual_name"]="$manual_ip"
+            NODE_PORTS["$manual_name"]="$manual_port"
             __get_node_passwords__ "single" "$manual_name"
             return 0
         elif [[ -n "$node_choice" && -n "${node_menu[$node_choice]:-}" ]]; then
