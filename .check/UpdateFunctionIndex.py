@@ -145,10 +145,12 @@ def process_file(filepath):
         # Combine the updated comment block with the rest of the file
         new_contents = updated_block + remainder
 
-        # Write back to the file
+        # Write back to the file, preserving original permissions
         try:
+            original_mode = os.stat(filepath).st_mode
             with open(filepath, "w", encoding="utf-8") as f:
                 f.writelines(new_contents)
+            os.chmod(filepath, original_mode)
             return True
         except Exception as e:
             print(f"\nCould not write to file '{filepath}': {e}")

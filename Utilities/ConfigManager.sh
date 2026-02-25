@@ -103,23 +103,24 @@ __set_execution_mode__() {
 }
 
 # Add remote target
-# Args: node_name node_ip password [username]
+# Args: node_name node_ip password [username] [port]
 __add_remote_target__() {
     local node_name="$1"
     local node_ip="$2"
     local password="$3"
     local username="${4:-$DEFAULT_USERNAME}"
+    local port="${5:-$DEFAULT_PORT}"
 
     REMOTE_TARGETS+=("$node_name:$node_ip")
     NODE_PASSWORDS["$node_name"]="$password"
     NODE_USERNAMES["$node_name"]="$username"
+    NODE_PORTS["$node_name"]="$port"
 }
 
 # Clear all remote targets
 __clear_remote_targets__() {
     REMOTE_TARGETS=()
     NODE_PASSWORDS=()
-    NODE_USERNAMES=()
 }
 
 # Get node IP by name

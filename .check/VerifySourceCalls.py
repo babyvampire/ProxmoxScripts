@@ -396,9 +396,11 @@ def fix_script(
     if insertion_index == len(lines) and lines_to_insert:
         new_lines.extend(lines_to_insert)
 
-    # 4) Write updated file
+    # 4) Write updated file, preserving original permissions
+    original_mode = os.stat(script_path).st_mode
     with open(script_path, "w", encoding="utf-8") as f:
         f.writelines(new_lines)
+    os.chmod(script_path, original_mode)
 
 def should_remove_source_line(line, remove_lines, remove_lines_dot):
     """
