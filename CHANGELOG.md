@@ -5,6 +5,76 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-03-02
+
+Security hardening, performance optimizations, and GUI improvements
+
+### Security
+- **SSH Password Exposure** - Switched all `sshpass -p` calls to `sshpass -e` (environment variable)
+  - Passwords no longer visible in `ps aux` process listing
+  - Applied to all 4 sites in SSH.sh (`__wait_for_ssh__`, `__ssh_exec__`, `__scp_send__`, `__scp_fetch__`)
+  - SSHPASS environment variable is unset immediately after each command
+- **Container Password Exposure** - Changed `__ct_change_password__` to pipe credentials via stdin
+  - Previously embedded password in `bash -c` command string (visible in /proc)
+  - Now pipes directly to `pct exec -- chpasswd`
+- **Guacamole Token Security** - Token file now created with restricted permissions
+  - Directory created with `mkdir -p -m 700`, token file set to `chmod 600`
+  - Prevents other system users from reading authentication tokens
+- **Guacamole API Credentials** - Switched to `--data-urlencode` for curl authentication
+  - Prevents special characters in passwords (e.g., `&`, `=`) from breaking API calls
+- **Eval Removal** - Replaced `eval` with safer alternatives across 10 sites in 6 files
+  - Command execution contexts now use `bash -c` instead of `eval "$cmd"`
+  - ArgumentParser.sh uses `declare -g` instead of `eval` for variable assignment
+- **ArgumentParser Blocklist** - Extended reserved variable name list
+  - Added high-risk names (HOSTNAME, RANDOM, SECONDS, GROUPS, etc.) to prevent overwrites
+
+### Fixed
+- **Filename Typo** - Renamed `EnableCPUScalingGoverner.sh` to `EnableCPUScalingGovernor.sh`
+  - Updated all references in CHANGELOG.md, .docs/TODO.md, and internal SCRIPT_NAME
+- **CreateFromISO Structure** - Moved `set -euo pipefail` after header comment block
+  - Added shellcheck source directive for sourced utility files
+- **RemoveStorage Race Condition** - Cached VM/CT config per iteration
+  - Added `|| continue` to skip VMs/CTs deleted between list and config check
+- **Locale-Dependent Parsing** - Fixed AWK decimal parsing in CreateFromISO.sh
+  - Added `LC_NUMERIC=C` and comma-to-dot conversion for European locale compatibility
+- **GUI Unicode Symbols** - Replaced all Unicode checkmarks/crosses with plain text
+
+### Changed
+- **GUI Breadcrumb Navigation** - Path display now shows `cc_pve > Storage > Ceph` style
+- **GUI Script Descriptions** - Menu listings show inline description extracted from script headers
+- **GUI Log Level Hint** - "Type 'l' to change log level" only shown in remote execution mode
+- **SSH Error Context** - Connection failures now display the SSH error reason at all 7 failure sites
+- **SSH Keepalive** - Added `ServerAliveInterval=5` and `ServerAliveCountMax=3` to SSH and SCP
+- **Multi-Node Recovery** - Execution summary now lists per-node results with retry option
+  - Shows `OK: node1 node2` and `FAIL: node3` after multi-remote execution
+  - Prompts to retry only the failed nodes
+- **CreateFromISO ArgumentParser Migration** - Replaced `getopts` with `__parse_args__`
+  - Arguments now use `--vm-name`, `--iso-url`, `--vm-storage` style flags
+  - All 8 arguments optional with interactive fallback preserved
+
+### Added
+- **CI Unit Tests** - Added unit test stage to `.github/workflows/checks.yml`
+  - Runs `Utilities/RunAllTests.sh` after static analysis checks
+- **BulkOperations Source Guards** - Defensive guards on source calls in BulkOperations.sh
+- **GUI Update Safety Guard** - Validates BASE_DIR before cleanup in `update_scripts()`
+- **Documentation** - Added `Manuals/README.md` table of contents and Documentation section in main README
+
+### Performance
+- **FindVMIDFromIP Caching** - Config fetched once per VMID instead of 3 times (~67% fewer API calls)
+- **Double-Sed Consolidation** - Merged 9 paired `sed | sed` calls into single `sed -e ... -e ...`
+  - Applied to BulkConfigureNetworkBandwidth, BulkConfigureDiskIOPS, BulkConfigureDiskBandwidth
+- **Bash Builtins** - Replaced `echo | tr` subprocesses with native `${var^^}` case conversion
+  - Applied to FindVMIDFromIP, BulkCloneSetIP_Proxmox, BulkReconfigureMacAddresses, Conversion.sh, ChangeAllMACPrefix.sh
+- **Carriage Return Removal** - Replaced `echo | tr -d '\r'` with `${var//$'\r'/}` in GUI.sh
+
+### Technical Details
+- `sshpass -e` reads from `SSHPASS` environment variable; inline assignment (`SSHPASS=x cmd`) used where possible
+- `declare -g` requires Bash 4.2+
+- `eval` retained in TestFramework.sh (dynamic function stubs) and RemoteExecutor.sh (SSH parameter expansion) - both legitimate uses
+- Multi-node retry uses recursive `__execute_remote_script__` call with filtered target list
+- FindVMIDFromIP caches both JSON and plain-text config formats per VMID for reuse
+- `--data-urlencode` sends each parameter separately, preventing URL parameter injection
+
 ## [2.1.9] - 2026-02-24
 
 Remote execution cancellation, live output streaming, and custom port support improvements
@@ -315,7 +385,7 @@ Implementation of ArgumentParser across the codebase and improved scripting stan
   - Now use `__parse_args__` declarative parsing
   - Fixed `__prompt_yes_no__` -> `__prompt_user_yn__` calls
 - **ArgumentParser integration**
-  - Host/Hardware/EnableCPUScalingGoverner.sh
+  - Host/Hardware/EnableCPUScalingGovernor.sh
   - RemoteManagement/ConfigureOverSSH/Proxmox/BulkDisableAutoStart.sh
   - RemoteManagement/ConfigureOverSSH/Proxmox/BulkUnmountISOs.sh
   - Storage/Ceph/SetScrubInterval.sh: (quality improvement with proper documentation/standards)

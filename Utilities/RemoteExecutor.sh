@@ -151,10 +151,13 @@ __test_remote_connection__() {
     local username="$3"
     local port="$4"
 
-    # Try simple echo command to test connection
-    if __ssh_exec__ "$node_ip" "$node_pass" "$username" "$port" "echo test" &>/dev/null; then
+    # Try simple echo command to test connection, capture stderr for diagnostics
+    LAST_SSH_ERROR=""
+    local ssh_err
+    if ssh_err=$(__ssh_exec__ "$node_ip" "$node_pass" "$username" "$port" "echo test" 2>&1 >/dev/null); then
         return 0
     else
+        LAST_SSH_ERROR="$ssh_err"
         return 1
     fi
 }
@@ -171,9 +174,9 @@ __ssh_exec__() {
     local command="$*"
 
     if [[ "$USE_SSH_KEYS" == "true" ]] || [[ -z "$node_pass" ]]; then
-        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -p "$port" "${username}@${node_ip}" "$command"
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -o ServerAliveInterval=5 -o ServerAliveCountMax=3 -p "$port" "${username}@${node_ip}" "$command"
     else
-        sshpass -p "$node_pass" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -p "$port" "${username}@${node_ip}" "$command"
+        sshpass -p "$node_pass" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -o ServerAliveInterval=5 -o ServerAliveCountMax=3 -p "$port" "${username}@${node_ip}" "$command"
     fi
 }
 
@@ -379,7 +382,7 @@ __execute_on_remote_node__() {
     REMOTE_CURRENT_NODE_PORT="$port"
     REMOTE_CURRENT_PID_FILE="$remote_pid_file"
 
-    # Stop spinner — stream live output directly to terminal
+    # Stop spinner - stream live output directly to terminal
     __ok__ "Executing script on $node_name (live output)..."
     echo
     echo "--- Remote Output ($node_name) ---"
@@ -465,6 +468,8 @@ __execute_remote_script__() {
 
     local success_count=0
     local fail_count=0
+    declare -a FAILED_NODES=()
+    declare -a SUCCEEDED_NODES=()
 
     # Reset interrupt flag
     REMOTE_INTERRUPTED=0
@@ -491,6 +496,7 @@ __execute_remote_script__() {
         IFS=':' read -r node_name node_ip <<<"$target" || {
             echo "Failed to parse target: $target"
             ((fail_count += 1))
+            FAILED_NODES+=("$node_name")
             continue
         }
 
@@ -501,6 +507,7 @@ __execute_remote_script__() {
         else
             echo "No password configured for $node_name"
             ((fail_count += 1))
+            FAILED_NODES+=("$node_name")
             continue
         fi
 
@@ -513,8 +520,10 @@ __execute_remote_script__() {
         # Execute on this node (always continue to next node regardless of result)
         if __execute_on_remote_node__ "$node_name" "$node_ip" "$node_pass" "$node_username" "$node_port" "$script_path" "$script_relative" "$script_dir_relative" "$param_line"; then
             ((success_count += 1))
+            SUCCEEDED_NODES+=("$node_name")
         else
             ((fail_count += 1))
+            FAILED_NODES+=("$node_name")
         fi
 
         # Check again after execution in case interrupt happened during execution
@@ -537,7 +546,43 @@ __execute_remote_script__() {
     echo
     echo "========================================"
     echo "Summary: $success_count successful, $fail_count failed"
+    if [[ ${#SUCCEEDED_NODES[@]} -gt 0 ]]; then
+        echo "  OK:   ${SUCCEEDED_NODES[*]}"
+    fi
+    if [[ ${#FAILED_NODES[@]} -gt 0 ]]; then
+        echo "  FAIL: ${FAILED_NODES[*]}"
+    fi
     echo "========================================"
+
+    # Offer retry for failed nodes
+    if [[ ${#FAILED_NODES[@]} -gt 0 && ${#REMOTE_TARGETS[@]} -gt 1 ]]; then
+        echo
+        read -rp "Retry failed nodes? (y/n): " retry_choice
+        if [[ "$retry_choice" == "y" || "$retry_choice" == "Y" ]]; then
+            # Build a temporary target list from failed nodes only
+            local -a ORIGINAL_TARGETS=("${REMOTE_TARGETS[@]}")
+            REMOTE_TARGETS=()
+            for node_name in "${FAILED_NODES[@]}"; do
+                for target in "${ORIGINAL_TARGETS[@]}"; do
+                    if [[ "${target%%:*}" == "$node_name" ]]; then
+                        REMOTE_TARGETS+=("$target")
+                        break
+                    fi
+                done
+            done
+
+            echo
+            echo "Retrying ${#REMOTE_TARGETS[@]} failed node(s)..."
+            echo
+
+            # Recursive retry
+            __execute_remote_script__ "$script_path" "$display_path_result" "$script_relative" "$script_dir_relative" "$param_line"
+
+            # Restore original targets
+            REMOTE_TARGETS=("${ORIGINAL_TARGETS[@]}")
+            return
+        fi
+    fi
 
     # Export for use by GUI.sh
     export LAST_SCRIPT="$display_path_result"

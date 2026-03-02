@@ -145,7 +145,7 @@ add_nfs_storage() {
     [[ -n "$NODES" ]] && cmd+=" --nodes ${NODES}"
     [[ -n "$OPTIONS" ]] && cmd+=" --options ${OPTIONS}"
 
-    if eval "$cmd"; then
+    if bash -c "$cmd"; then
         __ok__ "NFS storage '${STORAGE_ID}' added successfully"
         return 0
     else
@@ -168,7 +168,7 @@ add_smb_storage() {
     [[ -n "$CONTENT" ]] && cmd+=" --content ${CONTENT}"
     [[ -n "$NODES" ]] && cmd+=" --nodes ${NODES}"
 
-    if eval "$cmd"; then
+    if bash -c "$cmd"; then
         __ok__ "${STORAGE_TYPE^^} storage '${STORAGE_ID}' added successfully"
         return 0
     else
@@ -191,7 +191,7 @@ add_pbs_storage() {
     [[ -n "$FINGERPRINT" ]] && cmd+=" --fingerprint ${FINGERPRINT}"
     [[ -n "$NODES" ]] && cmd+=" --nodes ${NODES}"
 
-    if eval "$cmd"; then
+    if bash -c "$cmd"; then
         __ok__ "PBS storage '${STORAGE_ID}' added successfully"
         return 0
     else

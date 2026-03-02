@@ -168,6 +168,8 @@ __parse_args__() {
         PATH HOME USER SHELL PWD OLDPWD IFS
         LANG TZ TERM TMPDIR UID EUID GID PPID
         BASH_VERSION BASH_VERSINFO FUNCNAME LINENO
+        HOSTNAME LOGNAME MAIL EDITOR
+        TEMP TMP GROUPS
     )
 
     # Arrays to hold spec details
@@ -227,9 +229,9 @@ __parse_args__() {
 
             # Initialize variable
             if [[ "$type" == "flag" || "$type" == "bool" ]]; then
-                eval "${var_name}=false"
+                declare -g "${var_name}=false"
             else
-                eval "${var_name}='${default}'"
+                declare -g "${var_name}=${default}"
             fi
         else
             # Positional argument
@@ -307,7 +309,7 @@ __parse_args__() {
 
             # Handle boolean flags
             if [[ "$flag_type" == "flag" || "$flag_type" == "bool" ]]; then
-                eval "${flag_name}=true"
+                declare -g "${flag_name}=true"
                 __argparser_log__ "DEBUG" "Set boolean flag: $flag_name=true"
                 shift
                 continue
@@ -329,7 +331,7 @@ __parse_args__() {
                 return 1
             fi
 
-            eval "${flag_name}='${flag_value}'"
+            declare -g "${flag_name}=${flag_value}"
             __argparser_log__ "DEBUG" "Set flag: $flag_name='$flag_value'"
         else
             # Positional argument
@@ -352,7 +354,7 @@ __parse_args__() {
                 return 1
             fi
 
-            eval "${pos_name}='${arg}'"
+            declare -g "${pos_name}=${arg}"
             __argparser_log__ "DEBUG" "Set positional: $pos_name='$arg'"
             ((positional_index += 1)) || true
             shift
@@ -371,7 +373,7 @@ __parse_args__() {
         fi
 
         local pos_name="${POSITIONAL_NAMES[$i]^^}"
-        eval "${pos_name}='${default}'"
+        declare -g "${pos_name}=${default}"
     done
 
     # Special handling for VMID ranges

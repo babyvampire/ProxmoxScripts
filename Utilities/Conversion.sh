@@ -183,7 +183,7 @@ __vmid_to_mac_prefix__() {
     done
 
     local upperPrefix
-    upperPrefix=$(echo "$prefix" | tr '[:lower:]' '[:upper:]')
+    upperPrefix="${prefix^^}"
 
     local result="$upperPrefix"
     local segment

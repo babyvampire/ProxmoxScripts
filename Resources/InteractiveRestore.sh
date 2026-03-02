@@ -200,7 +200,7 @@ restore_container() {
 
     __info__ "Executing: ${cmd}"
 
-    if eval "$cmd" 2>&1; then
+    if bash -c "$cmd" 2>&1; then
         __ok__ "Container ${ctid} restored successfully"
         return 0
     else

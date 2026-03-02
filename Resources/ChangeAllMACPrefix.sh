@@ -99,7 +99,8 @@ main() {
 
     # Validate and normalize prefix
     local prefix_upper
-    prefix_upper="$(echo "$prefix" | tr '[:lower:]' '[:upper:]' | xargs)"
+    prefix_upper="${prefix^^}"
+    prefix_upper="${prefix_upper// /}"
 
     if [[ ! "$prefix_upper" =~ ^([0-9A-F]{2}):([0-9A-F]{2}):([0-9A-F]{2})$ ]]; then
         __err__ "Invalid MAC prefix: $prefix"

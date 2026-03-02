@@ -57,6 +57,12 @@ jobs:
         run: |
           echo "Running repository checks..."
           ./.check/_RunChecks.sh
+
+      - name: Run unit tests
+        run: |
+          echo "Running unit test suite..."
+          chmod +x Utilities/RunAllTests.sh
+          cd Utilities && bash RunAllTests.sh --unit-only
           
       - name: Check results
         run: |

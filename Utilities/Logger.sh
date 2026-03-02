@@ -195,7 +195,7 @@ __log_command__() {
     __log__ "DEBUG" "Executing: $cmd" "CMD"
 
     # Execute command and capture exit code
-    eval "$cmd"
+    bash -c "$cmd"
     local exit_code=$?
 
     if [[ $exit_code -eq 0 ]]; then

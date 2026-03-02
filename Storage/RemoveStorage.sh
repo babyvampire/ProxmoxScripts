@@ -62,7 +62,9 @@ check_storage_usage() {
 
     # Check VMs
     for vmid in $(qm list 2>/dev/null | tail -n +2 | awk '{print $1}'); do
-        if qm config "$vmid" 2>/dev/null | grep -q ":${STORAGE_ID}:"; then
+        local vm_config
+        vm_config=$(qm config "$vmid" 2>/dev/null) || continue
+        if echo "$vm_config" | grep -q ":${STORAGE_ID}:"; then
             in_use=true
             usage_details+="  VM ${vmid}\n"
         fi
@@ -70,7 +72,9 @@ check_storage_usage() {
 
     # Check LXC containers
     for ctid in $(pct list 2>/dev/null | tail -n +2 | awk '{print $1}'); do
-        if pct config "$ctid" 2>/dev/null | grep -q ":${STORAGE_ID}:"; then
+        local ct_config
+        ct_config=$(pct config "$ctid" 2>/dev/null) || continue
+        if echo "$ct_config" | grep -q ":${STORAGE_ID}:"; then
             in_use=true
             usage_details+="  CT ${ctid}\n"
         fi

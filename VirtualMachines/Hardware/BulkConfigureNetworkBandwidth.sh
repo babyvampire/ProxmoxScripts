@@ -107,7 +107,7 @@ main() {
             local new_config="$current_config"
 
             # Remove existing rate parameter
-            new_config=$(echo "$new_config" | sed "s/,rate=[^,]*//" | sed "s/rate=[^,]*,//")
+            new_config=$(echo "$new_config" | sed -e "s/,rate=[^,]*//" -e "s/rate=[^,]*,//")
 
             # Add new rate if non-zero
             [[ "$RATE" != "0" ]] && new_config="${new_config},rate=${RATE}"

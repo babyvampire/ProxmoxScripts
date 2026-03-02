@@ -75,7 +75,7 @@ main() {
         local api_token="apitoken=${TARGET_TOKEN}"
         local migrate_cmd="qm remote-migrate ${vmid} ${target_vmid} '${api_token},host=${TARGET_HOST},fingerprint=${FINGERPRINT}' --target-bridge ${TARGET_NETWORK} --target-storage ${TARGET_STORAGE} --online"
 
-        if eval "$migrate_cmd" 2>/dev/null; then
+        if bash -c "$migrate_cmd" 2>/dev/null; then
             return 0
         else
             return 1
