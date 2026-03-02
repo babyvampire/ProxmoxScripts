@@ -87,7 +87,7 @@ if [[ ! "$NEW_PREFIX" =~ ^([0-9A-Fa-f]{2}):([0-9A-Fa-f]{2}):([0-9A-Fa-f]{2})$ ]]
   exit 1
 fi
 
-UPREFIX="$(echo "$NEW_PREFIX" | tr '[:lower:]' '[:upper:]')"
+UPREFIX="${NEW_PREFIX^^}"
 echo "Setting datacenter mac_prefix to $UPREFIX ..."
 
 if [[ ! -d /etc/pve ]]; then

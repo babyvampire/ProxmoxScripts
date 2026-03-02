@@ -587,7 +587,7 @@ __ct_stop__() {
 
     __api_log__ "DEBUG" "Executing: $cmd"
 
-    if eval "$cmd" 2>/dev/null; then
+    if bash -c "$cmd" 2>/dev/null; then
         __api_log__ "INFO" "Successfully stopped CT $ctid"
         return 0
     else
@@ -1371,7 +1371,7 @@ __node_exec__() {
         __api_log__ "DEBUG" "Executing locally on $node"
         local output
         local exit_code
-        output=$(eval "$command" 2>&1)
+        output=$(bash -c "$command" 2>&1)
         exit_code=$?
         if [[ -n "$output" ]]; then
             echo "$output"
@@ -1556,7 +1556,7 @@ __ct_set_memory__() {
     local cmd="pct set $ctid --memory $memory"
     [[ -n "$swap" ]] && cmd+=" --swap $swap"
 
-    if eval "$cmd" 2>/dev/null; then
+    if bash -c "$cmd" 2>/dev/null; then
         __api_log__ "INFO" "Successfully set memory for CT $ctid"
         return 0
     else
@@ -1851,7 +1851,7 @@ __ct_change_password__() {
         return 1
     fi
 
-    if __ct_exec__ "$ctid" "echo '${username}:${password}' | chpasswd" 2>/dev/null; then
+    if echo "${username}:${password}" | pct exec "$ctid" -- chpasswd 2>/dev/null; then
         __api_log__ "INFO" "Successfully changed password for user $username in CT $ctid"
         return 0
     else

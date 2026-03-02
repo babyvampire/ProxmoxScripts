@@ -175,7 +175,7 @@ main() {
         [[ -n "$sshkeys_option" ]] && cmd="$cmd $sshkeys_option"
 
         local result=0
-        if ! eval "$cmd" 2>/dev/null; then
+        if ! bash -c "$cmd" 2>/dev/null; then
             result=1
         fi
 

@@ -80,7 +80,7 @@
 ### Specialized Hardware/System Scripts
 - [ ] Host/FanControl/DellIPMIFanControl.sh - IPMI-specific, hardware dependent
 - [ ] Host/FanControl/EnablePWMFanControl.sh - PWM control, hardware dependent
-- [ ] Host/Hardware/EnableCPUScalingGoverner.sh - Kernel parameter manipulation
+- [ ] Host/Hardware/EnableCPUScalingGovernor.sh - Kernel parameter manipulation
 - [ ] Host/Bulk/FirstTimeProxmoxSetup.sh - Complex initial setup wizard
 
 ### Interactive Menu Scripts

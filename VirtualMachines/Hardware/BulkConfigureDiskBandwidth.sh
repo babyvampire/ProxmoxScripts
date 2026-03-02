@@ -163,25 +163,25 @@ main() {
 
             # Update read bandwidth limit
             if [[ -n "$MBPS_RD" ]]; then
-                new_config=$(echo "$new_config" | sed "s/,mbps_rd=[^,]*//" | sed "s/mbps_rd=[^,]*,//")
+                new_config=$(echo "$new_config" | sed -e "s/,mbps_rd=[^,]*//" -e "s/mbps_rd=[^,]*,//")
                 [[ "$MBPS_RD" != "0" ]] && new_config="${new_config},mbps_rd=${MBPS_RD}"
             fi
 
             # Update write bandwidth limit
             if [[ -n "$MBPS_WR" ]]; then
-                new_config=$(echo "$new_config" | sed "s/,mbps_wr=[^,]*//" | sed "s/mbps_wr=[^,]*,//")
+                new_config=$(echo "$new_config" | sed -e "s/,mbps_wr=[^,]*//" -e "s/mbps_wr=[^,]*,//")
                 [[ "$MBPS_WR" != "0" ]] && new_config="${new_config},mbps_wr=${MBPS_WR}"
             fi
 
             # Update read burst bandwidth limit
             if [[ -n "$MBPS_RD_MAX" ]]; then
-                new_config=$(echo "$new_config" | sed "s/,mbps_rd_max=[^,]*//" | sed "s/mbps_rd_max=[^,]*,//")
+                new_config=$(echo "$new_config" | sed -e "s/,mbps_rd_max=[^,]*//" -e "s/mbps_rd_max=[^,]*,//")
                 [[ "$MBPS_RD_MAX" != "0" ]] && new_config="${new_config},mbps_rd_max=${MBPS_RD_MAX}"
             fi
 
             # Update write burst bandwidth limit
             if [[ -n "$MBPS_WR_MAX" ]]; then
-                new_config=$(echo "$new_config" | sed "s/,mbps_wr_max=[^,]*//" | sed "s/mbps_wr_max=[^,]*,//")
+                new_config=$(echo "$new_config" | sed -e "s/,mbps_wr_max=[^,]*//" -e "s/mbps_wr_max=[^,]*,//")
                 [[ "$MBPS_WR_MAX" != "0" ]] && new_config="${new_config},mbps_wr_max=${MBPS_WR_MAX}"
             fi
 

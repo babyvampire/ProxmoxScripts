@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail
 #
 # CreateFromISO.sh
 #
@@ -7,8 +6,8 @@ set -euo pipefail
 # and creates a Proxmox VM with user-specified or tier-based parameters.
 #
 # Usage:
-#   CreateFromISO.sh -n Win10 -L "http://example.com/windows10.iso"
-#   CreateFromISO.sh -n Win10 -L "http://example.com/windows10.iso" -s "local-lvm" -d 32 -b uefi -p t0h -v vmbr1
+#   CreateFromISO.sh --vm-name Win10 --iso-url "http://example.com/windows10.iso"
+#   CreateFromISO.sh --vm-name Win10 --iso-url "http://example.com/windows10.iso" --vm-storage "local-lvm" --disk-gib 32 --bios-type uefi --tier t0h --bridge-name vmbr1
 #
 # Tier Profiles (memory in GiB, cores):
 #   t0h: 64GB, 20 cores, host CPU
@@ -34,7 +33,12 @@ set -euo pipefail
 # Dependencies beyond default Proxmox 8: None (curl is included by default).
 #
 
+set -euo pipefail
+
+# shellcheck source=Utilities/Prompts.sh
 source "${UTILITYPATH}/Prompts.sh"
+# shellcheck source=Utilities/ArgumentParser.sh
+source "${UTILITYPATH}/ArgumentParser.sh"
 
 ###############################################################################
 # pick_largest_storage_for_content: returns the storage ID with the most free space
@@ -56,7 +60,7 @@ function pick_largest_storage_for_content {
         local numericAvail
         if [[ "$storeAvail" =~ G$ ]]; then
             local withoutG="${storeAvail%G}"
-            numericAvail=$(awk -v val="$withoutG" 'BEGIN {printf "%.0f", val*1024}')
+            numericAvail=$(LC_NUMERIC=C awk -v val="${withoutG//,/.}" 'BEGIN {printf "%.0f", val*1024}')
         else
             # If no 'G' suffix, assume bytes and convert to MiB
             numericAvail=$((storeAvail / 1024 / 1024))
@@ -343,31 +347,8 @@ function pick_iso_local_or_remote {
 __check_root__
 __check_proxmox__
 
-# Parse optional arguments for non-interactive:
-#   -n / -N  => VM_NAME
-#   -l / -L  => ISO_URL
-#   -s / -S  => VM_STORAGE
-#   -d / -D  => DISK_GIB
-#   -b / -B  => BIOS_TYPE
-#   -p / -P  => TIER
-#   -v / -V  => BRIDGE_NAME
-#   -i / -I  => VM_ID
-while getopts ":n:N:l:L:s:S:d:D:b:B:p:P:v:V:i:I:" opt; do
-    case "${opt}" in
-        n | N) VM_NAME="${OPTARG}" ;;
-        l | L) ISO_URL="${OPTARG}" ;;
-        s | S) VM_STORAGE="${OPTARG}" ;;
-        d | D) DISK_GIB="${OPTARG}" ;;
-        b | B) BIOS_TYPE="${OPTARG}" ;;
-        p | P) TIER="${OPTARG}" ;;
-        v | V) BRIDGE_NAME="${OPTARG}" ;;
-        i | I) VM_ID="${OPTARG}" ;;
-        *)
-            echo "Unknown option -${opt}" >&2
-            exit 1
-            ;;
-    esac
-done
+# Parse optional arguments for non-interactive mode (all optional; interactive fallback below)
+__parse_args__ "--vm-name:string:? --iso-url:string:? --vm-storage:string:? --disk-gib:string:? --bios-type:string:? --tier:string:? --bridge-name:string:? --vm-id:string:?" "$@"
 
 ###############################################################################
 # Interactive mode if essential arguments are missing

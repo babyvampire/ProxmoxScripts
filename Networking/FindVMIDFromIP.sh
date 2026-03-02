@@ -115,7 +115,7 @@ get_mac_from_ip() {
 extract_vmid_from_mac() {
     local mac="$1"
     local mac_upper
-    mac_upper=$(echo "$mac" | tr '[:lower:]' '[:upper:]')
+    mac_upper="${mac^^}"
     
     # Check if MAC starts with BC:
     if [[ ! "$mac_upper" =~ ^BC: ]]; then
@@ -154,14 +154,19 @@ find_direct_vmid() {
         vm_ids=$(pvesh get /nodes/"$node"/qemu --output-format=json 2>/dev/null | jq -r '.[] | .vmid' || true)
         
         for vmid in $vm_ids; do
+            # Cache config (JSON and plain text) once per VM
+            local vm_config_json vm_config_plain
+            vm_config_json=$(pvesh get /nodes/"$node"/qemu/"$vmid"/config --output-format=json 2>/dev/null || echo "{}")
+            vm_config_plain=$(pvesh get /nodes/"$node"/qemu/"$vmid"/config 2>/dev/null || true)
+            local vm_name
+            vm_name=$(echo "$vm_config_json" | jq -r '.name // "N/A"')
+
             # Check guest agent
             local guest_ips
             guest_ips=$(pvesh get /nodes/"$node"/qemu/"$vmid"/agent/network-get-interfaces --output-format=json 2>/dev/null | \
                 jq -r '.result[] | select(."ip-addresses") | ."ip-addresses"[] | select(."ip-address") | ."ip-address"' 2>/dev/null || true)
             
             if echo "$guest_ips" | grep -q "^${ip}$"; then
-                local vm_name
-                vm_name=$(pvesh get /nodes/"$node"/qemu/"$vmid"/config --output-format=json 2>/dev/null | jq -r '.name // "N/A"')
                 echo ""
                 __ok__ "Found VM ${vmid} on node ${node}"
                 echo "  Type: VM (qemu)"
@@ -172,12 +177,9 @@ find_direct_vmid() {
             
             # Check config
             local config_ips
-            config_ips=$(pvesh get /nodes/"$node"/qemu/"$vmid"/config 2>/dev/null | \
-                grep -oP 'ip=\K[0-9.]+' || true)
+            config_ips=$(echo "$vm_config_plain" | grep -oP 'ip=\K[0-9.]+' || true)
             
             if echo "$config_ips" | grep -q "^${ip}$"; then
-                local vm_name
-                vm_name=$(pvesh get /nodes/"$node"/qemu/"$vmid"/config --output-format=json 2>/dev/null | jq -r '.name // "N/A"')
                 echo ""
                 __ok__ "Found VM ${vmid} on node ${node} (from config)"
                 echo "  Type: VM (qemu)"
@@ -192,14 +194,19 @@ find_direct_vmid() {
         ct_ids=$(pvesh get /nodes/"$node"/lxc --output-format=json 2>/dev/null | jq -r '.[] | .vmid' || true)
         
         for ctid in $ct_ids; do
+            # Cache config (JSON and plain text) once per CT
+            local ct_config_json ct_config_plain
+            ct_config_json=$(pvesh get /nodes/"$node"/lxc/"$ctid"/config --output-format=json 2>/dev/null || echo "{}")
+            ct_config_plain=$(pvesh get /nodes/"$node"/lxc/"$ctid"/config 2>/dev/null || true)
+            local ct_name
+            ct_name=$(echo "$ct_config_json" | jq -r '.hostname // "N/A"')
+
             # Check interfaces
             local ct_ips
             ct_ips=$(pvesh get /nodes/"$node"/lxc/"$ctid"/interfaces --output-format=json 2>/dev/null | \
                 jq -r '.[] | select(.inet) | .inet' 2>/dev/null | cut -d'/' -f1 || true)
             
             if echo "$ct_ips" | grep -q "^${ip}$"; then
-                local ct_name
-                ct_name=$(pvesh get /nodes/"$node"/lxc/"$ctid"/config --output-format=json 2>/dev/null | jq -r '.hostname // "N/A"')
                 echo ""
                 __ok__ "Found CT ${ctid} on node ${node}"
                 echo "  Type: LXC"
@@ -209,12 +216,9 @@ find_direct_vmid() {
             fi
             
             # Check config
-            config_ips=$(pvesh get /nodes/"$node"/lxc/"$ctid"/config 2>/dev/null | \
-                grep -oP 'ip=\K[0-9.]+' || true)
+            config_ips=$(echo "$ct_config_plain" | grep -oP 'ip=\K[0-9.]+' || true)
             
             if echo "$config_ips" | grep -q "^${ip}$"; then
-                local ct_name
-                ct_name=$(pvesh get /nodes/"$node"/lxc/"$ctid"/config --output-format=json 2>/dev/null | jq -r '.hostname // "N/A"')
                 echo ""
                 __ok__ "Found CT ${ctid} on node ${node} (from config)"
                 echo "  Type: LXC"

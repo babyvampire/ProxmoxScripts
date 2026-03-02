@@ -1,6 +1,6 @@
 # Proxmox VE Management Scripts
 
-[![Version](https://img.shields.io/badge/version-2.1.6-blue.svg)](https://github.com/coelacant1/ProxmoxScripts/releases)
+[![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](https://github.com/coelacant1/ProxmoxScripts/releases)
 [![Repository Checks](https://github.com/coelacant1/ProxmoxScripts/actions/workflows/checks.yml/badge.svg)](https://github.com/coelacant1/ProxmoxScripts/actions/workflows/checks.yml)
 [![Deploy static content to Pages](https://github.com/coelacant1/ProxmoxScripts/actions/workflows/static.yml/badge.svg?branch=main)](https://github.com/coelacant1/ProxmoxScripts/actions/workflows/static.yml)
 [![Release on .sh changes](https://github.com/coelacant1/ProxmoxScripts/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/coelacant1/ProxmoxScripts/actions/workflows/release.yml)
@@ -232,6 +232,17 @@ Example for description and example commands in each script in this repository:
     target_storage - The storage identifier on the target node where VMs will be stored.
     vm_offset - An integer value to offset the VM IDs to avoid conflicts.
     target_network - The network bridge on the target server to connect the VMs.
+
+## Documentation
+
+Comprehensive guides are available in the [Manuals/](Manuals/) directory and via the GUI (`h` or `?`):
+
+- **[Getting Started](Manuals/getting-started.txt)** - Setup, prerequisites, and first-run instructions
+- **[GUI Overview](Manuals/gui-overview.txt)** - Complete interface guide
+- **[Execution Modes](Manuals/execution-modes.txt)** - Local, single-remote, and multi-remote modes
+- **[Node Management](Manuals/node-management.txt)** - Adding and configuring Proxmox nodes
+- **[SSH Proxy Configuration](Manuals/ssh-proxy-configuration.txt)** - Setting up SSH proxies and jump hosts
+- **[Troubleshooting](Manuals/troubleshooting.txt)** - Common issues and solutions
 
 ## Contributing
 

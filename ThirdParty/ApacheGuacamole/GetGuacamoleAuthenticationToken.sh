@@ -44,11 +44,12 @@ main() {
     __info__ "Requesting authentication token from Guacamole"
     __info__ "Server: $GUAC_URL"
 
-    mkdir -p "$(dirname "$TOKEN_PATH")"
+    mkdir -p -m 700 "$(dirname "$TOKEN_PATH")"
 
     local token_response
     if ! token_response=$(curl -s -X POST \
-        -d "username=${GUAC_USER}&password=${GUAC_PASS}" \
+        --data-urlencode "username=${GUAC_USER}" \
+        --data-urlencode "password=${GUAC_PASS}" \
         "${GUAC_URL}/api/tokens" 2>&1); then
         __err__ "Failed to connect to Guacamole server"
         exit 1
@@ -64,6 +65,7 @@ main() {
     fi
 
     echo "$auth_token" >"$TOKEN_PATH"
+    chmod 600 "$TOKEN_PATH"
 
     __ok__ "Authentication token retrieved successfully!"
     __info__ "Token saved to: $TOKEN_PATH"

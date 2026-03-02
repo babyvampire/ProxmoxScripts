@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# EnableCPUScalingGoverner.sh
+# EnableCPUScalingGovernor.sh
 #
 # A script to manage CPU frequency scaling governor on a Proxmox (or general Linux) system.
 # Supports three major actions:
@@ -9,11 +9,11 @@
 #   3. configure - Adjust CPU governor ("performance", "balanced", or "powersave") with optional min/max frequencies.
 #
 # Usage:
-#   EnableCPUScalingGoverner.sh install
-#   EnableCPUScalingGoverner.sh install performance -m 1.2GHz -M 3.0GHz
-#   EnableCPUScalingGoverner.sh remove
-#   EnableCPUScalingGoverner.sh configure balanced
-#   EnableCPUScalingGoverner.sh configure powersave --min 800MHz
+#   EnableCPUScalingGovernor.sh install
+#   EnableCPUScalingGovernor.sh install performance -m 1.2GHz -M 3.0GHz
+#   EnableCPUScalingGovernor.sh remove
+#   EnableCPUScalingGovernor.sh configure balanced
+#   EnableCPUScalingGovernor.sh configure powersave --min 800MHz
 #
 # Arguments:
 #   action              - Action to perform: install, remove, or configure
@@ -53,7 +53,7 @@ trap '__handle_err__ $LINENO "$BASH_COMMAND"' ERR
 # Globals / Defaults
 ###############################################################################
 
-SCRIPT_NAME="EnableCPUScalingGoverner.sh"
+SCRIPT_NAME="EnableCPUScalingGovernor.sh"
 TARGET_PATH="/usr/local/bin/${SCRIPT_NAME}"
 BALANCED_FALLBACK="ondemand"
 

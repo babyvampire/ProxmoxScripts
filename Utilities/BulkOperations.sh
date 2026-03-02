@@ -48,8 +48,12 @@ __bulk_log__() {
 }
 
 # Source dependencies
-source "${UTILITYPATH}/Operations.sh"
-source "${UTILITYPATH}/Communication.sh"
+if [[ -n "${UTILITYPATH:-}" && -f "${UTILITYPATH}/Operations.sh" ]]; then
+    source "${UTILITYPATH}/Operations.sh"
+fi
+if [[ -n "${UTILITYPATH:-}" && -f "${UTILITYPATH}/Communication.sh" ]]; then
+    source "${UTILITYPATH}/Communication.sh"
+fi
 
 # Global state for bulk operations
 declare -g BULK_TOTAL=0

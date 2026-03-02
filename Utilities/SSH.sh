@@ -62,7 +62,7 @@ __wait_for_ssh__() {
 
     for attempt in $(seq 1 "$maxAttempts"); do
         __ssh_log__ "DEBUG" "SSH connection attempt $attempt/$maxAttempts to $host"
-        if sshpass -p "$sshPassword" ssh -o BatchMode=no -o ConnectTimeout=5 -o StrictHostKeyChecking=no \
+        if SSHPASS="$sshPassword" sshpass -e ssh -o BatchMode=no -o ConnectTimeout=5 -o StrictHostKeyChecking=no \
             "$sshUsername@$host" exit 2>/dev/null; then
             echo "SSH is up on \"$host\""
             __ssh_log__ "INFO" "SSH connection successful to $host"
@@ -216,7 +216,8 @@ __ssh_exec__() {
 
     local -a sshCmd=()
     if [ -n "$password" ]; then
-        sshCmd+=(sshpass -p "$password")
+        export SSHPASS="$password"
+        sshCmd+=(sshpass -e)
     fi
 
     sshCmd+=(ssh)
@@ -229,7 +230,7 @@ __ssh_exec__() {
         sshCmd+=(-p "$port")
     fi
 
-    sshCmd+=(-o "BatchMode=no" -o "ConnectTimeout=$connectTimeout")
+    sshCmd+=(-o "BatchMode=no" -o "ConnectTimeout=$connectTimeout" -o "ServerAliveInterval=5" -o "ServerAliveCountMax=3")
 
     if [ "$useStrict" -eq 0 ]; then
         sshCmd+=(-o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null")
@@ -248,6 +249,7 @@ __ssh_exec__() {
     __ssh_log__ "DEBUG" "Executing: ${sshCmd[*]}"
     "${sshCmd[@]}"
     local exit_code=$?
+    unset SSHPASS
     __ssh_log__ "DEBUG" "SSH command completed with exit code: $exit_code"
     return $exit_code
 }
@@ -367,7 +369,8 @@ __scp_send__() {
 
     local -a scpCmd=()
     if [ -n "$password" ]; then
-        scpCmd+=(sshpass -p "$password")
+        export SSHPASS="$password"
+        scpCmd+=(sshpass -e)
     fi
 
     scpCmd+=(scp -q)
@@ -403,6 +406,7 @@ __scp_send__() {
     __ssh_log__ "DEBUG" "Executing SCP send: ${scpCmd[*]}"
     "${scpCmd[@]}"
     local exit_code=$?
+    unset SSHPASS
     __ssh_log__ "DEBUG" "SCP send completed with exit code: $exit_code"
     return $exit_code
 }
@@ -516,7 +520,8 @@ __scp_fetch__() {
 
     local -a scpCmd=()
     if [ -n "$password" ]; then
-        scpCmd+=(sshpass -p "$password")
+        export SSHPASS="$password"
+        scpCmd+=(sshpass -e)
     fi
 
     scpCmd+=(scp -q)
@@ -558,6 +563,7 @@ __scp_fetch__() {
     __ssh_log__ "DEBUG" "Executing SCP fetch: ${scpCmd[*]}"
     "${scpCmd[@]}"
     local exit_code=$?
+    unset SSHPASS
     __ssh_log__ "DEBUG" "SCP fetch completed with exit code: $exit_code"
     return $exit_code
 }

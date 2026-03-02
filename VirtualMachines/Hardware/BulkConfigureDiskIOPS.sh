@@ -164,25 +164,25 @@ main() {
 
             # Update read IOPS limit
             if [[ -n "$IOPS_RD" ]]; then
-                new_config=$(echo "$new_config" | sed "s/,iops_rd=[^,]*//" | sed "s/iops_rd=[^,]*,//")
+                new_config=$(echo "$new_config" | sed -e "s/,iops_rd=[^,]*//" -e "s/iops_rd=[^,]*,//")
                 [[ "$IOPS_RD" != "0" ]] && new_config="${new_config},iops_rd=${IOPS_RD}"
             fi
 
             # Update write IOPS limit
             if [[ -n "$IOPS_WR" ]]; then
-                new_config=$(echo "$new_config" | sed "s/,iops_wr=[^,]*//" | sed "s/iops_wr=[^,]*,//")
+                new_config=$(echo "$new_config" | sed -e "s/,iops_wr=[^,]*//" -e "s/iops_wr=[^,]*,//")
                 [[ "$IOPS_WR" != "0" ]] && new_config="${new_config},iops_wr=${IOPS_WR}"
             fi
 
             # Update read burst IOPS limit
             if [[ -n "$IOPS_RD_MAX" ]]; then
-                new_config=$(echo "$new_config" | sed "s/,iops_rd_max=[^,]*//" | sed "s/iops_rd_max=[^,]*,//")
+                new_config=$(echo "$new_config" | sed -e "s/,iops_rd_max=[^,]*//" -e "s/iops_rd_max=[^,]*,//")
                 [[ "$IOPS_RD_MAX" != "0" ]] && new_config="${new_config},iops_rd_max=${IOPS_RD_MAX}"
             fi
 
             # Update write burst IOPS limit
             if [[ -n "$IOPS_WR_MAX" ]]; then
-                new_config=$(echo "$new_config" | sed "s/,iops_wr_max=[^,]*//" | sed "s/iops_wr_max=[^,]*,//")
+                new_config=$(echo "$new_config" | sed -e "s/,iops_wr_max=[^,]*//" -e "s/iops_wr_max=[^,]*,//")
                 [[ "$IOPS_WR_MAX" != "0" ]] && new_config="${new_config},iops_wr_max=${IOPS_WR_MAX}"
             fi
 

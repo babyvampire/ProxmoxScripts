@@ -493,12 +493,13 @@ configure_single_remote() {
             echo "Testing connection..."
             if ! __test_remote_connection__ "$manual_ip" "$manual_pass" "$manual_user" "$manual_port"; then
                 echo
-                __line_rgb__ "✗ Connection failed! Please check IP, username, port, and password." 255 0 0
+                __line_rgb__ "Connection failed! Please check IP, username, port, and password." 255 0 0
+                [[ -n "${LAST_SSH_ERROR:-}" ]] && echo "Reason: $LAST_SSH_ERROR"
                 echo "Press Enter to try again..."
                 read -r
                 continue
             fi
-            echo "✓ Connection successful!"
+            echo "Connection successful!"
             sleep 1
 
             __clear_remote_targets__
@@ -597,12 +598,13 @@ configure_single_remote() {
             echo "Testing connection..."
             if ! __test_remote_connection__ "$manual_ip" "$manual_pass" "$manual_user" "$manual_port"; then
                 echo
-                __line_rgb__ "✗ Connection failed! Please check IP, username, and password." 255 0 0
+                __line_rgb__ "Connection failed! Please check IP, username, and password." 255 0 0
+                [[ -n "${LAST_SSH_ERROR:-}" ]] && echo "Reason: $LAST_SSH_ERROR"
                 echo "Press Enter to try again..."
                 read -r
                 continue
             fi
-            echo "✓ Connection successful!"
+            echo "Connection successful!"
             sleep 1
 
             __clear_remote_targets__
@@ -639,12 +641,13 @@ configure_single_remote() {
             echo "Testing connection to $selected_name..."
             if ! __test_remote_connection__ "$selected_ip" "$node_pass" "$selected_username" "$selected_port"; then
                 echo
-                __line_rgb__ "✗ Connection failed! Please check password." 255 0 0
+                __line_rgb__ "Connection failed! Please check password." 255 0 0
+                [[ -n "${LAST_SSH_ERROR:-}" ]] && echo "Reason: $LAST_SSH_ERROR"
                 echo "Press Enter to try again..."
                 read -r
                 continue
             fi
-            echo "✓ Connection successful!"
+            echo "Connection successful!"
             sleep 1
 
             __clear_remote_targets__
@@ -860,10 +863,11 @@ configure_multi_saved() {
                             echo "Testing connection to $node_name..."
                             if ! __test_remote_connection__ "$node_ip" "$node_pass" "$node_username" "$node_port"; then
                                 echo
-                                __line_rgb__ "✗ Connection to $node_name failed! Skipping this node." 255 0 0
+                                __line_rgb__ "Connection to $node_name failed! Skipping this node." 255 0 0
+                                [[ -n "${LAST_SSH_ERROR:-}" ]] && echo "Reason: $LAST_SSH_ERROR"
                                 continue
                             fi
-                            echo "✓ Connection to $node_name successful!"
+                            echo "Connection to $node_name successful!"
                             
                             NODE_PASSWORDS["$node_name"]="$node_pass"
                         else
@@ -893,12 +897,13 @@ configure_multi_saved() {
             echo "Testing password on first node ($first_name)..."
             if ! __test_remote_connection__ "$first_ip" "$shared_pass" "$first_username" "$first_port"; then
                 echo
-                __line_rgb__ "✗ Password test failed on $first_name!" 255 0 0
+                __line_rgb__ "Password test failed on $first_name!" 255 0 0
+                [[ -n "${LAST_SSH_ERROR:-}" ]] && echo "Reason: $LAST_SSH_ERROR"
                 echo "Please try again..."
                 sleep 2
                 continue
             fi
-            echo "✓ Password works on $first_name"
+            echo "Password works on $first_name"
             sleep 1
             
             for target in "${REMOTE_TARGETS[@]}"; do
@@ -919,18 +924,20 @@ configure_multi_saved() {
                 echo "Testing connection to $node_name..."
                 if ! __test_remote_connection__ "$node_ip" "$node_pass" "$node_username" "$node_port"; then
                     echo
-                    __line_rgb__ "✗ Connection to $node_name failed! Please try again." 255 0 0
+                    __line_rgb__ "Connection to $node_name failed! Please try again." 255 0 0
+                    [[ -n "${LAST_SSH_ERROR:-}" ]] && echo "Reason: $LAST_SSH_ERROR"
                     # Loop back to retry this specific node
                     read -rsp "Enter password for $node_name ($node_ip): " node_pass
                     echo
                     echo "Testing connection to $node_name..."
                     if ! __test_remote_connection__ "$node_ip" "$node_pass" "$node_username" "$node_port"; then
                         echo
-                        __line_rgb__ "✗ Still failed! Skipping $node_name." 255 0 0
+                        __line_rgb__ "Still failed! Skipping $node_name." 255 0 0
+                        [[ -n "${LAST_SSH_ERROR:-}" ]] && echo "Reason: $LAST_SSH_ERROR"
                         continue
                     fi
                 fi
-                echo "✓ Connection to $node_name successful!"
+                echo "Connection to $node_name successful!"
                 
                 NODE_PASSWORDS["$node_name"]="$node_pass"
             done
@@ -1213,7 +1220,7 @@ run_script_local() {
     __line_rgb__ "=== Running: $(display_path "$script_path") $param_line ===" 200 200 0
 
     IFS=' ' read -r -a param_array <<<"$param_line"
-    param_line=$(echo "$param_line" | tr -d '\r')
+    param_line="${param_line//$'\r'/}"
 
     mkdir -p .log
     touch .log/out.log
@@ -1413,6 +1420,15 @@ update_scripts() {
 
     echo "Updating files..."
 
+    # Safety check: verify BASE_DIR looks like the repo before deleting
+    if [[ ! -f "$BASE_DIR/GUI.sh" || ! -d "$BASE_DIR/Utilities" ]]; then
+        echo "Error: BASE_DIR ($BASE_DIR) does not appear to be the ProxmoxScripts repository"
+        echo "Aborting update to prevent accidental file deletion"
+        rm -rf "$TEMP_DIR"
+        sleep 3
+        return
+    fi
+
     # Remove old files but preserve .current_branch
     find "$BASE_DIR" -mindepth 1 ! -name ".current_branch" ! -name ".git" -delete 2>/dev/null || true
 
@@ -1524,8 +1540,13 @@ navigate() {
     while true; do
         clear
         show_ascii_art
-        echo -n "CURRENT DIRECTORY: "
-        __line_rgb__ "./$(display_path "$current_dir")" 0 255 0
+
+        # Show breadcrumb-style path
+        local rel_path
+        rel_path="$(display_path "$current_dir")"
+        local breadcrumb="${rel_path//\// > }"
+        echo -n "PATH: "
+        __line_rgb__ "$breadcrumb" 0 255 0
         echo
         echo "Folders and scripts:"
         echo "----------------------------------------"
@@ -1544,7 +1565,7 @@ navigate() {
             ((index += 1))
         done
 
-        # List scripts
+        # List scripts with one-line descriptions
         for s in "${scripts[@]}"; do
             local sname
             sname="$(basename "$s")"
@@ -1555,8 +1576,41 @@ navigate() {
                     continue
                 fi
             fi
-            
-            __line_rgb__ "$index) $sname" 100 200 100
+
+            # Extract first description line from script header
+            local desc=""
+            local past_name=false
+            while IFS= read -r line; do
+                [[ "$line" =~ ^#!/ ]] && continue
+                if [[ "$line" =~ ^#[[:space:]]*$ ]]; then
+                    continue
+                elif [[ "$line" =~ ^#[[:space:]]+(.+)$ ]]; then
+                    local content="${BASH_REMATCH[1]}"
+                    # Skip the script filename line
+                    if [[ "$content" == *.sh ]]; then
+                        past_name=true
+                        continue
+                    fi
+                    if [[ "$past_name" == true ]]; then
+                        desc="$content"
+                        break
+                    fi
+                else
+                    break
+                fi
+            done <"$s"
+
+            if [[ -n "$desc" ]]; then
+                # Truncate long descriptions
+                if [[ ${#desc} -gt 60 ]]; then
+                    desc="${desc:0:57}..."
+                fi
+                echo -ne "\033[38;2;100;200;100m$index) $sname\033[0m"
+                echo "  - $desc"
+            else
+                __line_rgb__ "$index) $sname" 100 200 100
+            fi
+
             menu_map[$index]="$s"
             ((index += 1))
         done
@@ -1565,7 +1619,9 @@ navigate() {
         echo "----------------------------------------"
         echo
         echo "Type 'h<number>' to show script comments."
-        echo "Type 'l' to change log level (remote execution only)."
+        if [[ "$EXECUTION_MODE" != "local" ]]; then
+            echo "Type 'l' to change log level."
+        fi
         show_common_footer "b" "e"
         echo
         echo "----------------------------------------"
