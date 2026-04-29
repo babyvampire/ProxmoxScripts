@@ -16,15 +16,25 @@ This repository contains Bash scripts (`.sh` files) that help automate and manag
    - Fork the repository to your own GitHub account.
    - Clone your fork locally.
 
-2. **Make Your Changes**
+2. **Create a Branch**
+   - Create a feature branch from `main` for your changes.
+   - Use a descriptive name (e.g., `fix/bulk-migrate-timeout`, `feature/add-serial-port`).
+
+3. **Make Your Changes**
    - Follow the coding guidelines below.
    - **Use the [Script Compliance Checklist](Utilities/_ScriptComplianceChecklist.md)** to ensure your script follows all conventions.
    - Test your changes thoroughly in a development/test environment.
 
-3. **Submit a Pull Request**
+4. **Submit a Pull Request**
    - Open a pull request (PR) against the repository’s `main` branch.
    - Provide a clear title and description, referencing any related issues.
+   - All PRs are reviewed by maintainers before merging.
 
+### Branching Model
+
+- **`main`** — Stable release branch. All PRs target this branch.
+- **`testing`** — Active development and integration testing before release.
+- **Feature branches** — Created from `main` for individual changes.
 ---
 
 ## 3. Shell Script Style Guide

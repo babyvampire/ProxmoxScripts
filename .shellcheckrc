@@ -1,0 +1,10 @@
+# ShellCheck configuration
+# https://www.shellcheck.net/wiki/
+
+# Allow sourcing from paths that can't be resolved at analysis time
+# (UTILITYPATH is set at runtime)
+external-sources=true
+
+# Disabled checks:
+# SC1091 - Not following sourced files (resolved via external-sources)
+disable=SC1091
