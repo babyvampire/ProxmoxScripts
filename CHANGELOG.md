@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] - 2026-04-29
+
+Online ext4 partition expansion fix
+
+### Fixed
+- **ExpandEXT4Partition** - Resize now succeeds on mounted filesystems
+  - Previously parted's heredoc fed `Yes` to a `Fix/Ignore?` GPT-recovery prompt,
+    producing `parted: invalid token: Yes` and silently leaving the partition
+    unchanged while the script reported success
+  - Replaced parted heredoc with `sgdisk` delete + recreate at the same start
+    sector, preserving partition GUID, type code and name (mountpoint stays valid)
+  - Removed the `umount` step entirely; uses `partx -u` to refresh the kernel
+    view online and `resize2fs` to grow ext4 while mounted
+  - Added a `blockdev --getsize64` verification step that fails loudly if the
+    kernel does not see the new partition size before `resize2fs` runs
+  - Dropped the `parted` install dependency (no longer used)
+
 ## [2.2.0] - 2026-03-02
 
 Security hardening, performance optimizations, and GUI improvements

@@ -4,5 +4,22 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"files.eol": "\n",
+		"files.trimTrailingWhitespace": true,
+		"files.insertFinalNewline": true,
+		"[shellscript]": {
+			"editor.tabSize": 4,
+			"editor.insertSpaces": true
+		},
+		"shellcheck.enable": true,
+		"shellcheck.run": "onType"
+	},
+	"extensions": {
+		"recommendations": [
+			"timonwong.shellcheck",
+			"foxundermoon.shell-format",
+			"mads-hartmann.bash-ide-vscode"
+		]
+	}
 }

@@ -1,0 +1,13 @@
+# Default owner for all files
+* @coelacant1
+
+# CI and repository checks
+.github/ @coelacant1
+.check/ @coelacant1
+
+# Utility framework
+Utilities/ @coelacant1
+
+# GUI entry point
+GUI.sh @coelacant1
+CCPVE.sh @coelacant1

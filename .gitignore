@@ -1,14 +1,31 @@
-#Custom 
+# IDE and editor
 .vscode/
 *.code-workspace
+.idea/
+*.swp
+*.swo
+*~
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Environment and secrets
+.env
+.env.local
 nodes.json
 TestConnectionInfo.json
-.d/
+
+# Temporary and log files
+*.log
+*.tmp
+
+# NFS and stale file handles
 .nfs*
-*/__pycache__/
-*/__pycache__/*
+
+# Python caches
 __pycache__/
-__pycache__/*
+*/__pycache__/
 
 # Downloaded Proxmox documentation (keep scripts, ignore generated content)
 .docs/*.html
